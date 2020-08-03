@@ -98,3 +98,7 @@ func countFileWildCard(globPath string, delete bool) (int, error) {
 	}
 	return nFiles, nil
 }
+
+func TestSetGlobalLoggerConfigWhileLogging(t *testing.T) {
+	// TODO: TestSetGlobalLoggerConfigWhileLogging
+}
