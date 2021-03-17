@@ -108,7 +108,11 @@ type timedRotatingWriter struct {
 
 func newTimedRotatingWriter(filePath string,
 	interval time.Duration, remainder time.Duration) *timedRotatingWriter {
-	base := &lumberjack.Logger{Filename: filePath}
+	base := &lumberjack.Logger{
+		Filename: filePath,
+		MaxSize:  100, // MaxSize unit is MiB
+		MaxAge:   32,  // MaxAge unit is days
+	}
 	w := &timedRotatingWriter{Logger: base, interval: interval, remainder: remainder}
 	w.mutex.Lock()
 	w.Logger.Rotate()
