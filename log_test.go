@@ -102,3 +102,20 @@ func countFileWildCard(globPath string, delete bool) (int, error) {
 func TestSetGlobalLoggerConfigWhileLogging(t *testing.T) {
 	// TODO: TestSetGlobalLoggerConfigWhileLogging
 }
+
+func TestTruncateTime(t *testing.T) {
+	now, _ := time.Parse(time.RFC3339, "2021-04-12T09:29:00+07:00")
+	lastRotated := calcLastRotatedTime(now, 24*time.Hour, 0)
+	if r, e := lastRotated.Format(time.RFC3339), "2021-04-12T00:00:00Z"; r != e {
+		t.Errorf("error calcLastRotatedTime: real %v, expected: %v", r, e)
+	}
+	vnLoc, err := time.LoadLocation("Asia/Ho_Chi_Minh")
+	if err != nil {
+		t.Fatalf("error load vnLoc: %v", err)
+	}
+	now2, _ := time.Parse(time.RFC3339, "2021-04-12T02:29:00Z")
+	lastRotated2 := calcLastRotatedTime(now2, 24*time.Hour, 17*time.Hour).In(vnLoc)
+	if r, e := lastRotated2.Format(time.RFC3339), "2021-04-12T00:00:00+07:00"; r != e {
+		t.Errorf("error calcLastRotatedTime: real %v, expected: %v", r, e)
+	}
+}

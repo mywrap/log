@@ -32,7 +32,7 @@ type Config struct {
 	IsNotLogBoth bool
 	// default 24 hours (rotating once per day if size of the log file < 100MB)
 	RotateInterval time.Duration
-	// default rotate at midnight in Vietnam (+07:00)
+	// default rotate at midnight in UTC (or 7AM in Vietnam)
 	RotateRemainder time.Duration
 }
 
@@ -43,7 +43,7 @@ func newConfigFromEnv() Config {
 	c.IsLogLevelInfo, _ = strconv.ParseBool(os.Getenv("LOG_LEVEL_INFO"))
 	c.IsNotLogBoth, _ = strconv.ParseBool(os.Getenv("LOG_NOT_STDOUT"))
 	c.RotateInterval = 24 * time.Hour
-	c.RotateRemainder = 7 * time.Hour
+	c.RotateRemainder = 0
 	return c
 }
 
@@ -106,6 +106,11 @@ type timedRotatingWriter struct {
 	lastRotated time.Time
 }
 
+func calcLastRotatedTime(now time.Time, interval, remainder time.Duration) time.Time {
+	nowUTC := now.UTC()
+	return nowUTC.Add(-remainder).Truncate(interval).Add(remainder)
+}
+
 func newTimedRotatingWriter(filePath string,
 	interval time.Duration, remainder time.Duration) *timedRotatingWriter {
 	base := &lumberjack.Logger{
@@ -116,7 +121,7 @@ func newTimedRotatingWriter(filePath string,
 	w := &timedRotatingWriter{Logger: base, interval: interval, remainder: remainder}
 	w.mutex.Lock()
 	w.Logger.Rotate()
-	w.lastRotated = time.Now().Add(-w.remainder).Truncate(w.interval).Add(w.remainder)
+	w.lastRotated = calcLastRotatedTime(time.Now(), w.interval, w.remainder)
 	w.mutex.Unlock()
 	return w
 }
@@ -127,7 +132,7 @@ func (w *timedRotatingWriter) rotateIfNeeded() error {
 	if time.Since(w.lastRotated) < w.interval {
 		return nil
 	}
-	w.lastRotated = time.Now().Add(-w.remainder).Truncate(w.interval).Add(w.remainder)
+	w.lastRotated = calcLastRotatedTime(time.Now(), w.interval, w.remainder)
 	err := w.Logger.Rotate()
 	return err
 }
@@ -236,15 +241,15 @@ func (l *StdLogger) Fatalf(format string, v ...interface{}) {
 
 func (l *StdLogger) Panic(v ...interface{}) {
 	globalLogger.Info(v...)
-	panic(920911) // just my girl birthday ^^
+	panic(1)
 }
 
 func (l *StdLogger) Panicf(format string, v ...interface{}) {
 	globalLogger.Infof(format, v...)
-	panic(920911)
+	panic(1)
 }
 
 func (l *StdLogger) Panicln(v ...interface{}) {
 	globalLogger.Info(v...)
-	panic(920911)
+	panic(1)
 }
