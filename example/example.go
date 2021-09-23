@@ -1,19 +1,17 @@
 package main
 
 import (
-"time"
-
-"github.com/mywrap/log"
+	"github.com/mywrap/log"
 )
 
 func main() {
-	defer log.Flush()
+	// set environment var LOG_FILE_PATH to log to file
 
 	name := "Dao Thanh Tung"
 	log.Printf("hello %v", name)
 
-	log.SetGlobalLoggerConfig(log.Config{LogFilePath: "./log_test_file_example",
-		RotateInterval: 24 * time.Hour, RotateRemainder: 7 * time.Hour})
-	log.Debugf("line level debug 1+1 = %v", 1+1)
-	log.Infof("line level info")
+	// set environment var LOG_LEVEL_INFO=true to skip following log line
+	log.Debugf("hi, this is a debug level log line")
+
+	log.Printf("done")
 }
