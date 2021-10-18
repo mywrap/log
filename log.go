@@ -25,11 +25,17 @@ var globalLogger *Logger = NewLogger(newConfigFromEnv())
 // Config will be used for initializing a Logger
 type Config struct {
 	LogFilePath string // default log to stdout
+
 	// default log both info and debug logs,
 	// change this field to true will only log info.
 	IsLogLevelInfo bool
 	// whether to log simultaneously to both stdout and file
 	IsNotLogBoth bool
+
+	// the maximum number of days to retain old log files, default 7
+	OldLogMaxDays int
+	// maximum size in megabytes of a log file, default 100
+	OneFileMaxMegabytes int
 	// default 24 hours (rotating once per day if size of the log file < 100MB)
 	RotateInterval time.Duration
 	// default rotate at midnight in UTC (or 7AM in Vietnam)
@@ -40,8 +46,12 @@ type Config struct {
 func newConfigFromEnv() Config {
 	var c Config
 	c.LogFilePath = os.Getenv("LOG_FILE_PATH")
+
 	c.IsLogLevelInfo, _ = strconv.ParseBool(os.Getenv("LOG_LEVEL_INFO"))
 	c.IsNotLogBoth, _ = strconv.ParseBool(os.Getenv("LOG_NOT_STDOUT"))
+
+	c.OldLogMaxDays, _ = strconv.Atoi(os.Getenv("LOG_MAX_DAY"))
+	c.OneFileMaxMegabytes, _ = strconv.Atoi(os.Getenv("LOG_MAX_MB"))
 	c.RotateInterval = 24 * time.Hour
 	c.RotateRemainder = 0
 	return c
@@ -61,7 +71,8 @@ func NewLogger(conf Config) *Logger {
 		writers = []zapcore.WriteSyncer{stdWriter}
 	} else {
 		ret.rotator = newTimedRotatingWriter(conf.LogFilePath,
-			conf.RotateInterval, conf.RotateRemainder)
+			conf.RotateInterval, conf.RotateRemainder,
+			conf.OldLogMaxDays, conf.OneFileMaxMegabytes)
 		fileWriter := zapcore.AddSync(ret.rotator)
 		if conf.IsNotLogBoth {
 			writers = []zapcore.WriteSyncer{fileWriter}
@@ -83,6 +94,36 @@ func NewLogger(conf Config) *Logger {
 	return ret
 }
 
+func newTimedRotatingWriter(filePath string,
+	interval time.Duration, remainder time.Duration,
+	oldLogMaxDays int, oneFileMaxMegabytes int) *timedRotatingWriter {
+	if oldLogMaxDays <= 0 {
+		oldLogMaxDays = 7
+	}
+	if oneFileMaxMegabytes <= 0 {
+		oneFileMaxMegabytes = 100
+	}
+	base := &lumberjack.Logger{
+		Filename: filePath,
+		MaxAge:   oldLogMaxDays,
+		MaxSize:  oneFileMaxMegabytes,
+	}
+	w := &timedRotatingWriter{Logger: base, interval: interval, remainder: remainder}
+	w.mutex.Lock()
+	w.Logger.Rotate()
+	w.lastRotated = calcLastRotatedTime(time.Now(), w.interval, w.remainder)
+	w.mutex.Unlock()
+	return w
+}
+
+type timedRotatingWriter struct {
+	*lumberjack.Logger
+	interval    time.Duration
+	remainder   time.Duration
+	mutex       sync.RWMutex
+	lastRotated time.Time
+}
+
 // SetGlobalLoggerConfig replace the globalLogger with a new logger from conf
 func SetGlobalLoggerConfig(conf Config) {
 	globalLogger.SugaredLogger.Sync()
@@ -98,32 +139,9 @@ func Flush() {
 	globalLogger.SugaredLogger.Sync()
 }
 
-type timedRotatingWriter struct {
-	*lumberjack.Logger
-	interval    time.Duration
-	remainder   time.Duration
-	mutex       sync.RWMutex
-	lastRotated time.Time
-}
-
 func calcLastRotatedTime(now time.Time, interval, remainder time.Duration) time.Time {
 	nowUTC := now.UTC()
 	return nowUTC.Add(-remainder).Truncate(interval).Add(remainder)
-}
-
-func newTimedRotatingWriter(filePath string,
-	interval time.Duration, remainder time.Duration) *timedRotatingWriter {
-	base := &lumberjack.Logger{
-		Filename: filePath,
-		MaxSize:  100, // MaxSize unit is MiB
-		MaxAge:   32,  // MaxAge unit is days
-	}
-	w := &timedRotatingWriter{Logger: base, interval: interval, remainder: remainder}
-	w.mutex.Lock()
-	w.Logger.Rotate()
-	w.lastRotated = calcLastRotatedTime(time.Now(), w.interval, w.remainder)
-	w.mutex.Unlock()
-	return w
 }
 
 func (w *timedRotatingWriter) rotateIfNeeded() error {
