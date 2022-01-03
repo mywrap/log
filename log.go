@@ -36,10 +36,14 @@ type Config struct {
 	OldLogMaxDays int
 	// maximum size in megabytes of a log file, default 100
 	OneFileMaxMegabytes int
-	// default 24 hours (rotating once per day if size of the log file < 100MB)
+	// default 24 hours (rotating once per day if size of the log file < OneFileMaxMegabytes)
 	RotateInterval time.Duration
 	// default rotate at midnight in UTC (or 7AM in Vietnam)
 	RotateRemainder time.Duration
+
+	// CallerSkip prevents this logger from always reporting the wrapper
+	// code position, default value (0) skip 1 level (this package wrapper)
+	CallerSkip int
 }
 
 // newConfigFromEnv create a Config from env vars
@@ -54,11 +58,17 @@ func newConfigFromEnv() Config {
 	c.OneFileMaxMegabytes, _ = strconv.Atoi(os.Getenv("LOG_MAX_MB"))
 	c.RotateInterval = 24 * time.Hour
 	c.RotateRemainder = 0
+
+	c.CallerSkip = 0
 	return c
 }
 
 // NewLogger returns a inited Logger
 func NewLogger(conf Config) *Logger {
+	if conf.RotateInterval == 0 {
+		conf.RotateInterval = 24 * time.Hour
+	}
+
 	ret := &Logger{}
 
 	encoderConf := zap.NewProductionEncoderConfig()
@@ -89,7 +99,7 @@ func NewLogger(conf Config) *Logger {
 
 	core := zapcore.NewCore(encoder, combinedWriter, logLevel)
 	zl := zap.New(core, zap.AddCaller())
-	zl = zl.WithOptions(zap.AddCallerSkip(1))
+	zl = zl.WithOptions(zap.AddCallerSkip(1 + conf.CallerSkip))
 	ret.SugaredLogger = zl.Sugar()
 	return ret
 }
