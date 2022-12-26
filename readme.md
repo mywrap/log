@@ -10,9 +10,10 @@ This package's top levels log funcs use a global logger that initialized
 by environment vars or can be configured at runtime with func
 SetGlobalLoggerConfig.
 
-Default logger logs to stdout, log both levels are info and debug. 
-If logging to a file, the default logger will rotate at midnight (+07:00)
-or when its size reaches 100MB.  
+Default config logs to stdout, log both levels info and debug. 
+If logging to a file (set env LOG_FILE_PATH), the default config will rotate at
+at midnight in UTC (7AM in Vietnam) or when its size reaches 100MB. Old log
+files will be delete after 32 days 
 
 ## Usage
 

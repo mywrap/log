@@ -3,7 +3,6 @@ package log
 import (
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,11 +64,11 @@ func TestTimedRotatingWriter(t *testing.T) {
 	countFileWildCard(globPath2, true)
 	SetGlobalLoggerConfig(Config{
 		LogFilePath:     logFilePath2,
-		RotateInterval:  200 * time.Millisecond,
-		RotateRemainder: 50 * time.Millisecond,
-	})
-	for k := 0; k < 60; k++ {
-		time.Sleep(time.Duration(7+rand.Intn(6)) * time.Millisecond)
+		RotateInterval:  500 * time.Millisecond,
+		RotateRemainder: 0,
+	}) // the logger will rotate when clock time is a multiples of 500ms
+	for k := 0; k < 15; k++ {
+		<-time.After(100 * time.Millisecond)
 		Infof("test rotate log: k: %v", k)
 	}
 	globalLogger.rotator.close()
@@ -77,8 +76,8 @@ func TestTimedRotatingWriter(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !(3 <= nFiles && nFiles <= 5) { // just estimate
-		t.Errorf("rotate expected: %v, real: %v", 3, nFiles)
+	if !(4 <= nFiles && nFiles <= 6) { // just estimate
+		t.Errorf("rotate expected: %v, real: %v", 4, nFiles)
 	}
 }
 

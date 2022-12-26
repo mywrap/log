@@ -42,7 +42,7 @@ type Config struct {
 	RotateRemainder time.Duration
 
 	// CallerSkip prevents this logger from always reporting the wrapper
-	// code position, default value (0) skip 1 level (this package wrapper)
+	// code position, default value skip 1 level (this package wrapper)
 	CallerSkip int
 }
 
@@ -108,7 +108,7 @@ func newTimedRotatingWriter(filePath string,
 	interval time.Duration, remainder time.Duration,
 	oldLogMaxDays int, oneFileMaxMegabytes int) *timedRotatingWriter {
 	if oldLogMaxDays <= 0 {
-		oldLogMaxDays = 7
+		oldLogMaxDays = 32
 	}
 	if oneFileMaxMegabytes <= 0 {
 		oneFileMaxMegabytes = 100
